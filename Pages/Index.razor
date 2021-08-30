@@ -1,0 +1,188 @@
+﻿@page "/"
+@using Atastra.Data
+@inject ITNotesService TNotesService
+@inject NavigationManager NavigationManager
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
+
+
+<AuthorizeView>
+
+    <NotAuthorized>
+        <h5>Please Log in</h5>
+        <h6>or</h6>
+        <h5>Register for Atastra</h5>
+        <h5><br /></h5>
+        <h7>For testing use<br />Email: Test@test1.com<br />Password: Test@test1.com</h7>
+        <h6><br />Please don't delete existing entries.</h6>
+    </NotAuthorized>
+
+    <Authorized>
+        <h3>Tasks</h3>
+
+        <SfGrid @ref="TaskGrid"
+                DataSource="@tnotes"
+                AllowSorting="true"
+                AllowResizing="true"
+                AllowFiltering="true"
+                AllowPaging="true"
+                AllowReordering="true"
+                AllowExcelExport="true"
+                ContextMenuItems="@(new List<object>() {"AutoFit","AutoFitAll", "SortAscending", "SortDescending", "Copy", "ExcelExport", "CsvExport", "FirstPage", "LastPage", "NextPage"})"
+                Toolbar="Toolbaritems">
+            <GridPageSettings PageSize="5"></GridPageSettings>
+            <GridEvents RowSelected="RowSelectHandler" OnToolbarClick="ToolbarClickHandler" TValue="TNotes"></GridEvents>
+            <GridColumns>
+                <GridColumn Field="@nameof(TNotes.Id)"
+                            HeaderText="ID"
+                            TextAlign="@TextAlign.Left"
+                            Width=20%
+                            AllowEditing="false"
+                            AllowAdding="false">
+
+                </GridColumn>
+                <GridColumn Field="@nameof(TNotes.Summary)"
+                            HeaderText="Summary"
+                            TextAlign="@TextAlign.Left"
+                            Width=100%>
+                </GridColumn>
+                <GridColumn Field="@nameof(TNotes.TNotePrio)"
+                            HeaderText="Priority"
+                            TextAlign="@TextAlign.Left"
+                            Width=20%>
+                </GridColumn>
+                <GridColumn Field="@nameof(TNotes.TNoteStatus)"
+                            HeaderText="Status"
+                            TextAlign="@TextAlign.Left"
+                            Width=20%>
+                </GridColumn>
+                <GridColumn Field="@nameof(TNotes.Assignee)"
+                            HeaderText="Assignee"
+                            TextAlign="@TextAlign.Left"
+                            Width=20%>
+                </GridColumn>
+            </GridColumns>
+
+        </SfGrid>
+
+        <SfDialog @ref="DialogDelete" IsModal="true" Width="250px" ShowCloseIcon="true" Visible="false">
+            <DialogTemplates>
+                <Header> Confirm Deletion </Header>
+                <Content> Are you sure you want to delete the selected record? </Content>
+            </DialogTemplates>
+            <DialogButtons>
+                <DialogButton Content="Delete" IsPrimary="true" OnClick="@ConfirmDeleteYes" />
+                <DialogButton Content="Cancel" IsPrimary="false" OnClick="@ConfirmDeleteNo" />
+            </DialogButtons>
+        </SfDialog>
+
+        <SfDialog @ref="DialogNoRecordSelected" IsModal="true" Width="250px" ShowCloseIcon="true" Visible="false">
+            <DialogTemplates>
+                <Header> Warning! </Header>
+                <Content> You need to select a Task </Content>
+            </DialogTemplates>
+            <DialogButtons>
+                <DialogButton Content="OK" IsPrimary="true" OnClick="@CloseDialogNoRecordSelected" />
+            </DialogButtons>
+        </SfDialog>
+
+    </Authorized>
+
+</AuthorizeView>
+
+@code {
+    SfDialog DialogDelete;
+    SfDialog DialogNoRecordSelected;
+
+    private int? Id;
+
+    private SfGrid<TNotes> TaskGrid;
+
+    //Create an empty list. named (tnotes), of empty task(tnotes) objects
+
+    IEnumerable<TNotes> tnotes;
+
+    // Toolbar Items
+    private List<ItemModel> Toolbaritems = new List<ItemModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        //Populate the list of tnotes objects from the tnotes table.
+        tnotes = await TNotesService.TNotesGetAll();
+
+        Toolbaritems.Add(new ItemModel() { Text = "Add", TooltipText = "Add a new task", PrefixIcon = "e-add" });
+        Toolbaritems.Add(new ItemModel() { Text = "Edit", TooltipText = "Edit selected task", PrefixIcon = "e-edit" });
+        Toolbaritems.Add(new ItemModel() { Text = "Delete", TooltipText = "Delete selected task", PrefixIcon = "e-delete" });
+
+    }
+
+    public void RowSelectHandler(RowSelectEventArgs<TNotes> args)
+    {
+        //{args.Data} returns the current selected records.
+        Id = args.Data.Id;
+    }
+
+    public async Task ToolbarClickHandler(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Text == "Add")
+        {
+            //Code for adding goes here
+            Id = 0;
+            NavigationManager.NavigateTo($"/tnotesaddedit/{Id}");
+        }
+
+        if (args.Item.Text == "Edit")
+        {
+            //Code for editing goes here
+            if (Id > 0)
+            {
+                NavigationManager.NavigateTo($"/tnotesaddedit/{Id}");
+            }
+            else
+            {
+                //No record has been selected
+                DialogNoRecordSelected.Show();
+            }
+        }
+
+        if (args.Item.Text == "Delete")
+        {
+            //Code for deleting goes here
+
+            if (Id > 0)
+            {
+                DialogDelete.Show();
+            }
+            else
+            {
+                //No record has been selected
+                DialogNoRecordSelected.Show();
+            }
+        }
+    }
+
+    public async Task ExcelExport()
+    {
+        await this.TaskGrid.ExcelExport();
+    }
+
+    private async Task CloseDialogNoRecordSelected()
+    {
+        await this.DialogNoRecordSelected.Hide();
+    }
+
+    public async void ConfirmDeleteNo()
+    {
+        await DialogDelete.Hide();
+    }
+
+    public async void ConfirmDeleteYes()
+    {
+        await TNotesService.TNotesDelete(Id.GetValueOrDefault()); //deletes the record
+        await DialogDelete.HideAsync();
+
+        //Both following lines required to refresh the grid
+        tnotes = await TNotesService.TNotesGetAll();
+        StateHasChanged();
+    }
+}  

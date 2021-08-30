@@ -1,0 +1,136 @@
+﻿@using Atastra.Data
+@using Syncfusion.Blazor.DropDowns
+
+@page "/tnotesaddedit/{Id:int}"
+@inject ITNotesService TNotesService
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = "Admin")]
+
+
+<h1>@pagetitle</h1>
+
+<SfDialog IsModal="true" Width="500px" ShowCloseIcon="false" Visible="true">
+
+    <h5>@pagetitle</h5>
+    <br />
+    <EditForm Model="@tnotes" OnValidSubmit="@TNotesSave">
+        <div>
+
+            <SfTextBox Enabled="true" Placeholder="Task"
+                       FloatLabelType="@FloatLabelType.Always"
+                       @bind-Value="tnotes.Summary"></SfTextBox>
+
+            <SfDropDownList TItem="TNPrioValues" TValue="string" DataSource="TNPValues"
+                            Placeholder="Select a Priority" @bind-Value="tnotes.TNotePrio"
+                            FloatLabelType="@FloatLabelType.Always">
+
+                <DropDownListFieldSettings Text="Name" Value="ID">
+
+                </DropDownListFieldSettings>
+
+            </SfDropDownList>
+
+            <SfTextBox Enabled="true" Placeholder="Assignee"
+                       FloatLabelType="@FloatLabelType.Always"
+                       @bind-Value="tnotes.Assignee"></SfTextBox>
+
+            <SfDropDownList TItem="TNStatusValues" TValue="string" DataSource="TNSValues"
+                            Placeholder="Select a Status" @bind-Value="tnotes.TNoteStatus"
+                            FloatLabelType="@FloatLabelType.Always">
+
+                <DropDownListFieldSettings Text="Name" Value="ID">
+
+                </DropDownListFieldSettings>
+
+            </SfDropDownList>
+        </div>
+        <br /><br />
+        <div class="e-footer-content">
+            <div class="button-container">
+                <button type="submit" class="e-btn e-normal e-primary">Save</button>
+                <button type="button" class="e-btn e-normal" @onclick="@Cancel">Cancel</button>
+            </div>
+        </div>
+    </EditForm>
+
+</SfDialog>
+
+@code {
+
+    public class TNPrioValues
+    {
+        public string Name { get; set; }
+        public string ID { get; set; }
+    }
+    List<TNPrioValues> TNPValues = new List<TNPrioValues>
+{
+        new TNPrioValues() { ID="Low", Name="Low"},
+        new TNPrioValues() { ID="Normal", Name="Normal"},
+        new TNPrioValues() { ID="High", Name="High"},
+        new TNPrioValues() { ID="Urgent", Name="Urgent"}
+    };
+
+    public class TNStatusValues
+    {
+        public string Name { get; set; }
+        public string ID { get; set; }
+    }
+    List<TNStatusValues> TNSValues = new List<TNStatusValues>
+{
+        new TNStatusValues() { ID="Finished", Name="Finished"},
+        new TNStatusValues() { ID="In Progress", Name="In Progress"},
+        new TNStatusValues() { ID="New", Name="New"},
+
+    };
+
+
+    // Create a new, empty TNotes object
+    TNotes tnotes = new TNotes();
+
+    public string pagetitle = "Add a Task";
+
+    [Parameter]
+    public int Id { get; set; }
+
+    //Executes on page open, sets headings and gets data in the case of edit
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id == 0)
+        {
+            pagetitle = "Add a Task";
+        }
+        else
+        {
+            pagetitle = "Edit a Task";
+            //gets the name of the task being passed in
+            tnotes = await TNotesService.TNotesGetOne(Id);
+        }
+    }
+
+    //Executes OnValidSubmit of Editform above.
+    protected async Task TNotesSave()
+    {
+
+        if (Id == 0)
+        {
+            await TNotesService.TNotesInsert(tnotes);
+        }
+        else
+        {
+            await TNotesService.TNotesUpdate(tnotes);
+        }
+        NavigationManager.NavigateTo("/");
+
+        //await TNotesService.TNotesInsert(tnotes);
+        //NavigationManager.NavigateTo("/");
+
+    }
+
+    //Executes if user clicks the Cancel button.
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+}
